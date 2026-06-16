@@ -31,7 +31,7 @@ export default function AdminLogin() {
   };
 
   return (
-    <div data-testid="admin-login-page" className="min-h-screen pt-28 pb-20 flex items-center justify-center px-6 relative overflow-hidden">
+    <div data-testid="admin-login-page" className="min-h-screen pt-44 pb-20 flex items-center justify-center px-6 relative overflow-hidden">
       <div className="purple-glow w-[500px] h-[500px] -left-20 top-20 opacity-50" />
       <div className="purple-glow w-[500px] h-[500px] -right-20 bottom-0 opacity-40" />
 

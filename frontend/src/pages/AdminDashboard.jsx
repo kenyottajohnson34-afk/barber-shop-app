@@ -95,7 +95,7 @@ export default function AdminDashboard() {
   }, [appts]);
 
   return (
-    <div data-testid="admin-dashboard" className="min-h-screen pt-24 pb-16 bg-background">
+    <div data-testid="admin-dashboard" className="min-h-screen pt-44 pb-16 bg-background">
       <div className="max-w-7xl mx-auto px-6 lg:px-10">
         <div className="flex flex-wrap items-end justify-between gap-6 mb-12">
           <div>

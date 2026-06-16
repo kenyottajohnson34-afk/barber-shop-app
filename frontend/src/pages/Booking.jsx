@@ -96,7 +96,7 @@ export default function Booking() {
 
   if (success) {
     return (
-      <div className="min-h-screen pt-32 pb-20 px-6 flex items-center justify-center" data-testid="booking-success">
+      <div className="min-h-screen pt-48 pb-20 px-6 flex items-center justify-center" data-testid="booking-success">
         <div className="max-w-xl w-full bg-card border border-primary/40 gold-glow p-10 rounded-sm text-center">
           <div className="w-14 h-14 mx-auto rounded-full bg-primary/15 flex items-center justify-center mb-6 border border-primary/40">
             <Check className="w-7 h-7 text-primary" />
@@ -131,7 +131,7 @@ export default function Booking() {
   }
 
   return (
-    <div data-testid="booking-page" className="min-h-screen pt-28 pb-20 relative overflow-hidden">
+    <div data-testid="booking-page" className="min-h-screen pt-44 pb-20 relative overflow-hidden">
       <div className="purple-glow w-[600px] h-[600px] -left-40 top-20 opacity-50" />
       <div className="purple-glow w-[500px] h-[500px] -right-40 bottom-0 opacity-40" />
 

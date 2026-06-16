@@ -10,7 +10,7 @@ export default function Home() {
   return (
     <div data-testid="home-page" className="bg-background text-foreground">
       {/* HERO */}
-      <section className="relative min-h-[100vh] flex items-center overflow-hidden pt-24">
+      <section className="relative min-h-[100vh] flex items-center overflow-hidden pt-44 lg:pt-52">
         <div className="purple-glow w-[700px] h-[700px] -right-40 -top-40" />
         <div className="purple-glow w-[500px] h-[500px] -left-32 bottom-0 opacity-60" />
 
