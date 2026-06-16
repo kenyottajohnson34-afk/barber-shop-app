@@ -140,7 +140,7 @@ def _email_html(title: str, intro: str, appt: dict) -> str:
         </td></tr>
         <tr><td style="padding:0 32px 32px;border-top:1px solid rgba(255,255,255,0.06);padding-top:18px">
           <p style="color:#9aa49b;font-size:12px;line-height:1.6;margin:0">
-            Need to reschedule? Reply to this email or call us. Cancellations within 24h may incur a fee.
+            Need to reschedule? Reply to this email or call us. Cancellations within 12h may incur a fee.
           </p>
         </td></tr>
       </table>

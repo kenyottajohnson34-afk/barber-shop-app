@@ -45,7 +45,7 @@ export default function Booking() {
   const [success, setSuccess] = useState(null);
   const [bookedTimes, setBookedTimes] = useState([]);
   const [loadingAvail, setLoadingAvail] = useState(false);
-  const [payNow, setPayNow] = useState(false);
+  const [payNow, setPayNow] = useState(true); // default: Pay deposit now (for all services)
   const [paymentsConfig, setPaymentsConfig] = useState({
     deposit_amount: 500,
     currency: "dop",
@@ -324,7 +324,12 @@ export default function Booking() {
 
           {/* Deposit / Payment selection */}
           <div className="mb-8 space-y-4" data-testid="deposit-section">
-            <div className="overline">Payment</div>
+            <div className="flex items-baseline justify-between flex-wrap gap-2">
+              <div className="overline">Payment</div>
+              <div className="text-xs text-muted-foreground tracking-wide">
+                We accept <span className="gold-text">credit &amp; debit cards</span>
+              </div>
+            </div>
             <div className="grid sm:grid-cols-2 gap-4">
               {/* Pay deposit now */}
               <button
@@ -340,13 +345,15 @@ export default function Booking() {
                 <div className="flex items-center gap-2 mb-1">
                   <CreditCard className="w-4 h-4 text-primary" />
                   <span className="font-medium">Pay deposit now</span>
-                  {depositRequired && (
+                  {depositRequired ? (
                     <span className="ml-auto text-[10px] uppercase tracking-widest bg-primary/15 text-primary px-2 py-0.5 rounded-sm">Required</span>
+                  ) : (
+                    <span className="ml-auto text-[10px] uppercase tracking-widest text-muted-foreground">Recommended</span>
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   <span className="gold-text font-medium">{paymentsConfig.deposit_amount} {paymentsConfig.currency.toUpperCase()}</span>
-                  {" "}credit card deposit · secures your spot · applied to your final bill.
+                  {" "}deposit · secures your spot · applied to your final bill. Credit or debit accepted.
                 </p>
               </button>
 
@@ -369,7 +376,7 @@ export default function Booking() {
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   {depositRequired
                     ? "Not available for massage services — a deposit is required."
-                    : "No upfront payment. Pay when you arrive."}
+                    : "No upfront payment. Pay when you arrive (credit, debit or cash)."}
                 </p>
               </button>
             </div>
@@ -382,7 +389,7 @@ export default function Booking() {
 
           <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
             <p className="text-xs text-muted-foreground tracking-wide max-w-md">
-              By confirming you agree to our 24-hour cancellation policy. We'll send a reminder via email and text.
+              By confirming you agree to our 12-hour cancellation policy. We'll send a reminder via email and text.
             </p>
             <Button
               type="submit"
