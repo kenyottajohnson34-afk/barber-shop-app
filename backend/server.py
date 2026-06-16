@@ -13,6 +13,7 @@ import bcrypt
 import jwt
 import resend
 from twilio.rest import Client as TwilioClient
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 
@@ -273,6 +274,7 @@ class Appointment(BaseModel):
     time: str
     notes: Optional[str] = ""
     status: str = "pending"  # pending | confirmed | cancelled | completed
+    reminder_sent: bool = False
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 class AppointmentStatusUpdate(BaseModel):
@@ -380,6 +382,12 @@ async def send_appointment_sms(appointment_id: str, body: SmsRequest, _: dict = 
         "twilio_configured": bool(twilio_client and TWILIO_FROM_NUMBER),
     }
 
+@api_router.post("/admin/run-reminders")
+async def manual_reminder_run(_: dict = Depends(get_current_admin)):
+    """Manually trigger the 24h-reminder job (useful for testing)."""
+    await reminder_job()
+    return {"ok": True}
+
 @api_router.post("/auth/login", response_model=LoginResponse)
 async def admin_login(payload: LoginRequest):
     user = await db.users.find_one({"email": payload.email.lower()})
@@ -411,14 +419,74 @@ async def seed_admin():
         await db.users.update_one({"email": ADMIN_EMAIL.lower()}, {"$set": {"password_hash": hashed}})
         logger.info("Updated admin password from .env")
 
+async def reminder_job():
+    """Runs periodically. Sends a 24h-before SMS reminder to any active appointment
+    whose start time falls within ~21-27h from now and that hasn't been reminded yet."""
+    try:
+        now = datetime.now(timezone.utc)
+        # Look at next ~30h window of appointments
+        candidates = await db.appointments.find(
+            {
+                "status": {"$in": ACTIVE_STATUSES},
+                "reminder_sent": {"$ne": True},
+                "date": {
+                    "$gte": now.strftime("%Y-%m-%d"),
+                    "$lte": (now + timedelta(days=2)).strftime("%Y-%m-%d"),
+                },
+            },
+            {"_id": 0},
+        ).to_list(500)
+
+        sent_count = 0
+        for a in candidates:
+            try:
+                # Local naive datetime of appointment (treat as UTC for simplicity — adjust if you want shop tz)
+                appt_dt = datetime.strptime(f"{a['date']} {a['time']}", "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
+                delta_hours = (appt_dt - now).total_seconds() / 3600.0
+                if 21 <= delta_hours <= 27:
+                    msg = (
+                        f"Hola {a['name'].split(' ')[0]}! Reminder: your {a['service']} at {SHOP_NAME} "
+                        f"is tomorrow ({a['date']}) at {a['time']}. "
+                        f"Reply CONFIRM to confirm, or call us to reschedule. Ref: {a['id'][:8]}"
+                    )
+                    sid = await asyncio.to_thread(_send_sms_sync, a["phone"], msg)
+                    await db.appointments.update_one(
+                        {"id": a["id"]},
+                        {"$set": {
+                            "reminder_sent": True,
+                            "reminder_sent_at": now.isoformat(),
+                            "reminder_sid": sid,
+                        }},
+                    )
+                    sent_count += 1
+            except Exception as e:
+                logger.error(f"Reminder failed for {a.get('id')}: {e}")
+        if sent_count:
+            logger.info(f"Reminder job: sent {sent_count} reminders")
+    except Exception as e:
+        logger.error(f"Reminder job crashed: {e}")
+
+
+scheduler: Optional[AsyncIOScheduler] = None
+
 @app.on_event("startup")
 async def on_startup():
     await db.users.create_index("email", unique=True)
     await db.appointments.create_index("created_at")
+    await db.appointments.create_index([("date", 1), ("time", 1)])
     await seed_admin()
+    # Schedule the reminder job to run every 30 minutes
+    global scheduler
+    scheduler = AsyncIOScheduler(timezone="UTC")
+    scheduler.add_job(reminder_job, "interval", minutes=30, id="reminder_job", next_run_time=datetime.now(timezone.utc) + timedelta(seconds=20))
+    scheduler.start()
+    logger.info("Reminder scheduler started (every 30 min)")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
+    global scheduler
+    if scheduler:
+        scheduler.shutdown(wait=False)
     client.close()
 
 
