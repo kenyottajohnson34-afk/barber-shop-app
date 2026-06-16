@@ -2,6 +2,8 @@ import { Link } from "react-router-dom";
 import { SERVICES } from "../lib/api";
 import { ArrowRight, Scissors, Sparkles, Award, Clock } from "lucide-react";
 
+const LOGO_URL = "https://customer-assets.emergentagent.com/job_cuts-and-care/artifacts/6c9hyyw2_IMG-20260615-WA0073.jpg";
+
 const QR_URL_PUBLIC = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=${encodeURIComponent(
   (typeof window !== "undefined" ? window.location.origin : "") + "/book"
 )}&color=D4AF37&bgcolor=0A140E&qzone=2`;
@@ -9,83 +11,68 @@ const QR_URL_PUBLIC = `https://api.qrserver.com/v1/create-qr-code/?size=280x280&
 export default function Home() {
   return (
     <div data-testid="home-page" className="bg-background text-foreground">
-      {/* HERO */}
-      <section className="relative min-h-[100vh] flex items-center overflow-hidden pt-44 lg:pt-52">
+      {/* HERO — giant centered logo banner */}
+      <section className="relative min-h-[100vh] flex flex-col items-center justify-center overflow-hidden pt-28 pb-20 text-center">
         <div className="purple-glow w-[700px] h-[700px] -right-40 -top-40" />
-        <div className="purple-glow w-[500px] h-[500px] -left-32 bottom-0 opacity-60" />
+        <div className="purple-glow w-[600px] h-[600px] -left-32 bottom-0 opacity-60" />
 
         <div
-          className="absolute inset-0 bg-cover bg-center opacity-30"
+          className="absolute inset-0 bg-cover bg-center opacity-20"
           style={{ backgroundImage: "url(https://images.pexels.com/photos/5812313/pexels-photo-5812313.jpeg)" }}
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-background via-background/85 to-background/40" />
+        <div className="absolute inset-0 bg-gradient-to-b from-background/60 via-background/85 to-background" />
 
-        <div className="relative max-w-7xl mx-auto px-6 lg:px-10 grid lg:grid-cols-12 gap-12 items-center w-full">
-          <div className="lg:col-span-7 fade-up">
-            <div className="overline mb-6">Est. C&amp;C — Barbería &amp; Spa · Style &amp; Relax</div>
-            <h1 className="font-serif text-5xl sm:text-6xl lg:text-7xl leading-[1.05] tracking-tighter mb-8">
-              Timeless craft.<br />
-              <span className="gold-text">Modern</span> <em className="not-italic text-foreground/90">ritual.</em>
-            </h1>
-            <p className="text-muted-foreground text-base sm:text-lg max-w-xl mb-10 leading-relaxed font-light">
-              Precision haircuts, immaculate manicures &amp; pedicures, and restorative spa
-              treatments — under one roof, by stylists who care.
-            </p>
+        <div className="relative max-w-5xl mx-auto px-6 lg:px-10 w-full flex flex-col items-center">
+          {/* Giant logo banner */}
+          <img
+            src={LOGO_URL}
+            alt="C&C Barbería & Spa"
+            data-testid="hero-logo-banner"
+            className="w-auto h-[45vh] sm:h-[55vh] lg:h-[60vh] max-h-[640px] object-contain fade-up drop-shadow-[0_30px_80px_rgba(212,175,55,0.25)]"
+          />
 
-            <div className="flex flex-wrap gap-4 items-center">
-              <Link
-                to="/book"
-                data-testid="hero-book-btn"
-                className="group inline-flex items-center gap-3 px-7 py-3.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors rounded-sm tracking-wide"
-              >
-                Book an Appointment
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-              </Link>
-              <a
-                href="#services"
-                data-testid="hero-services-link"
-                className="px-7 py-3.5 border border-white/15 hover:border-primary/60 hover:text-primary transition-colors rounded-sm tracking-wide"
-              >
-                Explore Services
-              </a>
-            </div>
-
-            <div className="mt-16 grid grid-cols-3 gap-8 max-w-lg">
-              {[
-                ["12+", "Years"],
-                ["4", "Stylists"],
-                ["1.2k", "Five-star reviews"],
-              ].map(([n, l]) => (
-                <div key={l}>
-                  <div className="font-serif text-3xl gold-text">{n}</div>
-                  <div className="text-xs uppercase tracking-widest text-muted-foreground mt-1">{l}</div>
-                </div>
-              ))}
-            </div>
+          <div className="overline mt-10 mb-4 fade-up" style={{ animationDelay: "0.1s" }}>
+            Est. C&amp;C — Barbería &amp; Spa · Style &amp; Relax
           </div>
 
-          {/* QR card */}
-          <div className="lg:col-span-5 hidden lg:flex justify-end fade-up" style={{ animationDelay: "0.15s" }}>
-            <div
-              data-testid="hero-qr-card"
-              className="relative w-[340px] bg-card p-8 border border-white/10 gold-glow rounded-sm"
+          <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl leading-[1.05] tracking-tighter mb-6 fade-up" style={{ animationDelay: "0.15s" }}>
+            Timeless craft. <span className="gold-text">Modern</span> <em className="not-italic text-foreground/90">ritual.</em>
+          </h1>
+
+          <p className="text-muted-foreground text-base sm:text-lg max-w-xl mb-10 leading-relaxed font-light fade-up" style={{ animationDelay: "0.2s" }}>
+            Precision haircuts, immaculate manicures &amp; pedicures, and restorative spa
+            treatments — under one roof, by stylists who care.
+          </p>
+
+          <div className="flex flex-wrap gap-4 items-center justify-center fade-up" style={{ animationDelay: "0.25s" }}>
+            <Link
+              to="/book"
+              data-testid="hero-book-btn"
+              className="group inline-flex items-center gap-3 px-7 py-3.5 bg-primary text-primary-foreground hover:bg-primary/90 transition-colors rounded-sm tracking-wide"
             >
-              <div className="overline mb-3">Scan to Book</div>
-              <div className="font-serif text-2xl mb-5 leading-tight">
-                Skip the call.<br/>Book in seconds.
+              Book an Appointment
+              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+            </Link>
+            <a
+              href="#services"
+              data-testid="hero-services-link"
+              className="px-7 py-3.5 border border-white/15 hover:border-primary/60 hover:text-primary transition-colors rounded-sm tracking-wide"
+            >
+              Explore Services
+            </a>
+          </div>
+
+          <div className="mt-16 grid grid-cols-3 gap-8 sm:gap-16 fade-up" style={{ animationDelay: "0.3s" }}>
+            {[
+              ["12+", "Years"],
+              ["4", "Stylists"],
+              ["1.2k", "Five-star reviews"],
+            ].map(([n, l]) => (
+              <div key={l}>
+                <div className="font-serif text-3xl gold-text">{n}</div>
+                <div className="text-xs uppercase tracking-widest text-muted-foreground mt-1">{l}</div>
               </div>
-              <div className="bg-background p-3 inline-block border border-primary/30">
-                <img
-                  src={QR_URL_PUBLIC}
-                  alt="Booking QR code"
-                  data-testid="booking-qr-code"
-                  className="w-[260px] h-[260px]"
-                />
-              </div>
-              <div className="text-xs text-muted-foreground mt-4 tracking-wide">
-                Or tap “Book Now” above
-              </div>
-            </div>
+            ))}
           </div>
         </div>
 
@@ -211,7 +198,7 @@ export default function Home() {
               <img
                 src={QR_URL_PUBLIC}
                 alt="Booking QR code"
-                data-testid="booking-qr-code-secondary"
+                data-testid="booking-qr-code"
                 className="w-[240px] h-[240px]"
               />
             </div>

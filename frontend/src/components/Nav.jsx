@@ -14,12 +14,12 @@ export default function Nav() {
       data-testid="site-nav"
       className="fixed top-0 inset-x-0 z-50 backdrop-blur-xl bg-background/70 border-b border-white/5"
     >
-      <div className="max-w-7xl mx-auto px-6 lg:px-10 py-3 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-6 lg:px-10 h-20 flex items-center justify-between">
         <Link to="/" data-testid="brand-logo" className="flex items-center group">
           <img
             src={LOGO_URL}
             alt="C&C Barbería & Spa"
-            className="h-28 sm:h-36 lg:h-44 w-auto object-contain"
+            className="h-14 sm:h-16 w-auto object-contain"
             data-testid="brand-logo-img"
           />
         </Link>
