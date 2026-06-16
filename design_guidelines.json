@@ -1,0 +1,101 @@
+{
+  "theme_and_archetype": {
+    "theme": "dark",
+    "archetype": "5 (Luxury)",
+    "description": "High-end, cinematic, moody barbershop and spa named C&C. Premium aesthetic using a dark emerald base, antique gold accents, and deep purple secondary details. High contrast, elegant typography, and generous spacing."
+  },
+  "colors": {
+    "css_variables": {
+      "--background": "144 33% 6%",
+      "--foreground": "0 0% 98%",
+      "--card": "145 33% 11%",
+      "--card-foreground": "0 0% 98%",
+      "--popover": "145 33% 11%",
+      "--popover-foreground": "0 0% 98%",
+      "--primary": "46 65% 52%",
+      "--primary-foreground": "144 33% 6%",
+      "--secondary": "299 55% 19%",
+      "--secondary-foreground": "0 0% 98%",
+      "--muted": "145 20% 18%",
+      "--muted-foreground": "150 10% 70%",
+      "--accent": "299 55% 19%",
+      "--accent-foreground": "0 0% 98%",
+      "--border": "145 20% 20%",
+      "--input": "145 20% 20%",
+      "--ring": "46 65% 52%"
+    },
+    "guidelines": "Use the dark green background exclusively. Never use pure black. Gold (--primary) is for key CTAs and borders. Purple (--secondary) is strictly for subtle glow effects (e.g., backdrop blur layers) and accent hover states to provide a rich, royal undertone without overwhelming the green/gold primary palette."
+  },
+  "typography": {
+    "fonts": {
+      "headings": "Cormorant Garamond, serif",
+      "body": "Outfit, sans-serif"
+    },
+    "rules": {
+      "h1": "text-4xl sm:text-5xl lg:text-6xl tracking-tighter font-medium",
+      "h2": "text-2xl sm:text-3xl lg:text-4xl tracking-tight font-medium",
+      "h3": "text-xl sm:text-2xl font-medium",
+      "body": "text-base leading-relaxed font-light text-muted-foreground",
+      "overline": "uppercase text-xs tracking-[0.2em] text-primary"
+    }
+  },
+  "layout_and_spacing": {
+    "philosophy": "Generous Spacing (p-8, p-12, p-24). Sections must breathe. No cramped containers.",
+    "grids": "Use Mode A (Tetris Grid) for Gallery and Features. Mode B (Control Room) for Admin Dashboard.",
+    "alignment": "Left-align dense text and forms. Center-align hero headings and major section titles.",
+    "hero_overlay": "bg-black/50 with a subtle radial gradient of purple (bg-purple-900/20) to blend into the green."
+  },
+  "components": {
+    "buttons": "Flat background with 1px border. Gold background for primary with dark green text. Hover: slightly lighter gold, subtle shadow.",
+    "cards": "Solid dark green (lighter than background). 1px border-white/5. Do not use heavy shadows, rely on borders. Max border-radius 0px (sharp edges) or 4px.",
+    "forms": "Shadcn inputs customized. bg-transparent, border-white/20, focus:border-primary focus:ring-1 focus:ring-primary.",
+    "navigation": "Crystal glassmorphism: backdrop-blur-xl bg-background/80, 1px bottom border border-white/10.",
+    "qr_code": "Display in a premium 'card' in the footer or a dedicated booking section. Add a subtle gold glow around it."
+  },
+  "media": {
+    "images": [
+      {
+        "url": "https://images.pexels.com/photos/5812313/pexels-photo-5812313.jpeg",
+        "category": "hero",
+        "description": "Barber grooming client - Use as main hero background with dark overlay."
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1632345031435-8727f6897d53",
+        "category": "service_manicure",
+        "description": "Nail salon manicure - Use in services showcase."
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1610992015762-45dca7fa3a85",
+        "category": "service_pedicure",
+        "description": "Pedicure feet - Use in services showcase."
+      },
+      {
+        "url": "https://images.pexels.com/photos/16372646/pexels-photo-16372646.jpeg",
+        "category": "service_haircut",
+        "description": "Vintage barber chair - Use for haircut service card."
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1488345979593-09db0f85545f",
+        "category": "service_spa",
+        "description": "Spa pool - Use for spa service card."
+      },
+      {
+        "url": "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=https://candc-bookings.com/book&color=D4AF37&bgcolor=0A140E",
+        "category": "qr_code",
+        "description": "Custom Gold and Dark Green QR code for booking."
+      }
+    ]
+  },
+  "instructions_to_main_agent": [
+    "Install required dependencies: lucide-react, react-hook-form, zod, @hookform/resolvers, date-fns, react-day-picker.",
+    "Build the application using standard JavaScript (.js/.jsx) as typescript is not configured.",
+    "Use pure HTML/Tailwind for marketing layouts. Overlapping elements, asymmetry.",
+    "Use Shadcn UI for the Booking Form (Input, Select, Form, Calendar, Popover) and Admin Dashboard (Table, Tabs). Customize Shadcn components directly in their files to match the guidelines.",
+    "Must include 'data-testid' attributes on all interactive elements (e.g., data-testid='book-now-btn', data-testid='service-select').",
+    "Admin Dashboard should be accessible via a /admin route or a tab. Use strict 'Control Room' grid for it.",
+    "Do NOT use 'Inter' font. Import and use 'Cormorant Garamond' and 'Outfit' via Google Fonts in index.html or global css.",
+    "Blend the purple requirement as subtle ambient gradients (e.g., absolute div with bg-purple-900/20 blur-[100px]) to avoid clashing with the green/gold foreground. This adds depth to the luxury feel.",
+    "Ensure the booking form handles name, phone, email, service selection, stylist/barber selection, date, time, and notes.",
+    "Do NOT use placeholder images. Use only the URLs provided in the media section."
+  ]
+}
