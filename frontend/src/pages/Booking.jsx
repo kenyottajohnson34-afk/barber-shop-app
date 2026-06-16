@@ -36,10 +36,36 @@ export default function Booking() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(null);
+  const [bookedTimes, setBookedTimes] = useState([]);
+  const [loadingAvail, setLoadingAvail] = useState(false);
 
   useEffect(() => {
     setForm((f) => ({ ...f, service: initialService }));
   }, [initialService]);
+
+  // Fetch booked slots whenever date or stylist changes (only matters if a stylist is chosen)
+  useEffect(() => {
+    const stylistChosen = form.stylist && form.stylist !== "No preference";
+    if (!form.date || !stylistChosen) {
+      setBookedTimes([]);
+      return;
+    }
+    const dateStr = format(form.date, "yyyy-MM-dd");
+    setLoadingAvail(true);
+    api
+      .get("/availability", { params: { date: dateStr, stylist: form.stylist } })
+      .then(({ data }) => setBookedTimes(data.booked_times || []))
+      .catch(() => setBookedTimes([]))
+      .finally(() => setLoadingAvail(false));
+  }, [form.date, form.stylist]);
+
+  // If the currently chosen time becomes booked, clear it
+  useEffect(() => {
+    if (form.time && bookedTimes.includes(form.time)) {
+      setForm((f) => ({ ...f, time: "" }));
+      toast.warning("That time was just taken — please pick another.");
+    }
+  }, [bookedTimes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -172,15 +198,25 @@ export default function Booking() {
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="Time">
+            <Field label={loadingAvail ? "Time (checking availability…)" : "Time"}>
               <Select value={form.time} onValueChange={set("time")}>
                 <SelectTrigger data-testid="booking-time-select" className="bg-transparent border-white/15">
                   <SelectValue placeholder="Pick a time" />
                 </SelectTrigger>
                 <SelectContent className="max-h-72">
-                  {TIME_SLOTS.map((t) => (
-                    <SelectItem key={t} value={t} data-testid={`time-option-${t}`}>{t}</SelectItem>
-                  ))}
+                  {TIME_SLOTS.map((t) => {
+                    const taken = bookedTimes.includes(t);
+                    return (
+                      <SelectItem
+                        key={t}
+                        value={t}
+                        disabled={taken}
+                        data-testid={`time-option-${t}`}
+                      >
+                        {t}{taken ? "  ·  booked" : ""}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </Field>

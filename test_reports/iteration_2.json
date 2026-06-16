@@ -1,0 +1,46 @@
+{
+  "summary": "Iteration 2: tested new availability + email-skip features and ran regression. Backend pytest suite (17 tests) — ALL PASS. UI test on /book — ALL PASS. 14:00 slot shows '· booked' and is disabled when Carlos is selected for a date with a Carlos booking at 14:00; switching from 'No preference' (where 14:00 was free) back to Carlos clears the chosen time and triggers the warning toast. No regressions in existing flows.",
+  "tested_scope": ["backend", "frontend", "integration"],
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "passed_backend": [
+    "GET /api/availability?date=<future>&stylist=Carlos -> 200 with {date, stylist, booked_times:[]} when empty",
+    "GET /api/availability?date=<future> (no stylist) -> 200, stylist=null",
+    "POST /api/appointments first Carlos@14:00 -> 200",
+    "POST /api/appointments same Carlos+date+14:00 -> 409 with detail 'Carlos is already booked at 14:00 on <date>. Please pick a different time or artist.'",
+    "POST /api/appointments Camille same date+14:00 -> 200 (different stylist allowed)",
+    "POST /api/appointments stylist=null (No preference) same date+14:00 -> 200 (no-pref does NOT lock)",
+    "POST /api/appointments second stylist=null same date+14:00 -> 200 (multiple no-prefs allowed)",
+    "GET /api/availability after Carlos booking shows 14:00 in booked_times for Carlos",
+    "GET /api/availability for Camille shows 14:00 in booked_times (also has a booking)",
+    "GET /api/availability for Chen does NOT show 14:00 (independent slots per stylist)",
+    "Regression: GET /api/, /api/services, login good/bad, list-requires-auth, PATCH status->confirmed",
+    "Backend log contains WARNING '[email skipped — no RESEND_API_KEY] would have sent to ...' (proves email path executes without crashing)"
+  ],
+  "passed_frontend": [
+    "/book page loads with all data-testid hooks",
+    "Selecting stylist=Carlos + date with seeded Carlos@14:00 booking -> 14:00 SelectItem rendered as '14:00  ·  booked' with aria-disabled='true'",
+    "Other times (e.g. 15:30) remain selectable",
+    "Picking 14:00 under stylist='No preference' (slot is free for no-pref view) then switching to Carlos -> useEffect clears form.time and toast 'That time was just taken — please pick another.' appears",
+    "Form Date trigger displays selected date correctly (e.g. 'June 18th, 2026')"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_availability_and_email.py",
+    "/app/test_reports/pytest/iter2_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "send_booking_emails is fired via asyncio.create_task without try/except; current _send_email_sync swallows Resend errors so this is safe, but consider also wrapping create_task target to log task-level exceptions (e.g., asyncio.create_task(...).add_done_callback) for production-grade observability.",
+    "create_appointment conflict check + insert is non-atomic; under high concurrency two simultaneous Carlos@14:00 requests could both pass the check. Consider a unique partial index in MongoDB on {stylist, date, time} where status in active_statuses, or a transactional insert with a duplicate-key catch returning 409.",
+    "RESEND_API_KEY left empty in committed .env is intentional per spec, but SENDER_EMAIL onboarding@resend.dev only works for the Resend test domain — flag for user to set real domain when adding the key.",
+    "Frontend availability fetch races: if user rapidly changes date/stylist the in-flight response may overwrite a newer one (no AbortController). Minor — visible booked slots could be stale for ~1 sec."
+  ],
+  "updated_files": ["/app/backend/tests/test_availability_and_email.py"],
+  "success_rate": {"backend": "100% (17/17)", "frontend": "100% (all booking-UI checks)"},
+  "test_credentials": "admin@candc.com / admin123 (from /app/backend/.env)",
+  "seed_data_creation": "Tests create TEST_-prefixed appointments and remove all appointments for the test date during teardown.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "mocked_apis_confirmed": ["Resend email send — RESEND_API_KEY is empty in /app/backend/.env; backend logs WARNING per intended email but does not actually send. Verified."],
+  "context_for_next_testing_agent": "Tests live in /app/backend/tests/test_availability_and_email.py and use REACT_APP_BACKEND_URL. Iteration 1 also covered home/services/QR/admin login/dashboard CRUD which still pass via regression tests here. UI test in this run navigated calendar using aria-label like 'Thursday, June 18, 2026' for a date 2 days in the future — recommended approach to reach future dates regardless of current month."
+}

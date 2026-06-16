@@ -7,8 +7,10 @@ load_dotenv(ROOT_DIR / '.env')
 import os
 import uuid
 import logging
+import asyncio
 import bcrypt
 import jwt
+import resend
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 
@@ -27,6 +29,12 @@ JWT_SECRET = os.environ['JWT_SECRET']
 JWT_ALGORITHM = "HS256"
 ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admin@candc.com')
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin123')
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '').strip()
+SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'C&C Barber Shop <onboarding@resend.dev>')
+SHOP_NAME = os.environ.get('SHOP_NAME', 'C&C Barber Shop & Spa')
+
+if RESEND_API_KEY:
+    resend.api_key = RESEND_API_KEY
 
 app = FastAPI(title="C&C Barber Shop API")
 api_router = APIRouter(prefix="/api")
@@ -69,6 +77,83 @@ async def get_current_admin(credentials: Optional[HTTPAuthorizationCredentials] 
     if not user or user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin access required")
     return user
+
+
+# ---------- Email helpers (Resend) ----------
+ACTIVE_STATUSES = ["pending", "confirmed"]
+
+def _email_html(title: str, intro: str, appt: dict) -> str:
+    stylist = appt.get("stylist") or "Next available artist"
+    notes_row = (
+        f'<tr><td style="padding:8px 0;color:#9aa49b;font-size:12px;text-transform:uppercase;letter-spacing:2px">Notes</td>'
+        f'<td style="padding:8px 0;color:#fff;font-size:14px">{appt.get("notes") or "—"}</td></tr>'
+    )
+    return f"""
+    <div style="background:#0a140e;padding:40px 20px;font-family:Helvetica,Arial,sans-serif;color:#fff">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width:560px;margin:0 auto;background:#13261a;border:1px solid rgba(212,175,55,0.25);border-radius:4px">
+        <tr><td style="padding:32px 32px 0">
+          <div style="color:#d4af37;font-size:11px;letter-spacing:4px;text-transform:uppercase;margin-bottom:8px">{SHOP_NAME}</div>
+          <h1 style="font-family:Georgia,serif;font-size:28px;margin:0 0 8px;color:#fff;font-weight:500">{title}</h1>
+          <p style="color:#9aa49b;font-size:14px;line-height:1.6;margin:0 0 24px">{intro}</p>
+        </td></tr>
+        <tr><td style="padding:0 32px 24px">
+          <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-top:1px solid rgba(255,255,255,0.08)">
+            <tr><td style="padding:14px 0;color:#9aa49b;font-size:12px;text-transform:uppercase;letter-spacing:2px">Service</td>
+                <td style="padding:14px 0;color:#d4af37;font-size:16px;font-weight:600">{appt.get("service")}</td></tr>
+            <tr><td style="padding:8px 0;color:#9aa49b;font-size:12px;text-transform:uppercase;letter-spacing:2px">Date</td>
+                <td style="padding:8px 0;color:#fff;font-size:14px">{appt.get("date")}</td></tr>
+            <tr><td style="padding:8px 0;color:#9aa49b;font-size:12px;text-transform:uppercase;letter-spacing:2px">Time</td>
+                <td style="padding:8px 0;color:#fff;font-size:14px">{appt.get("time")}</td></tr>
+            <tr><td style="padding:8px 0;color:#9aa49b;font-size:12px;text-transform:uppercase;letter-spacing:2px">Artist</td>
+                <td style="padding:8px 0;color:#fff;font-size:14px">{stylist}</td></tr>
+            <tr><td style="padding:8px 0;color:#9aa49b;font-size:12px;text-transform:uppercase;letter-spacing:2px">Client</td>
+                <td style="padding:8px 0;color:#fff;font-size:14px">{appt.get("name")} · {appt.get("phone")} · {appt.get("email")}</td></tr>
+            {notes_row}
+            <tr><td style="padding:8px 0;color:#9aa49b;font-size:12px;text-transform:uppercase;letter-spacing:2px">Reference</td>
+                <td style="padding:8px 0;color:#9aa49b;font-size:11px;font-family:monospace">{appt.get("id")}</td></tr>
+          </table>
+        </td></tr>
+        <tr><td style="padding:0 32px 32px;border-top:1px solid rgba(255,255,255,0.06);padding-top:18px">
+          <p style="color:#9aa49b;font-size:12px;line-height:1.6;margin:0">
+            Need to reschedule? Reply to this email or call us. Cancellations within 24h may incur a fee.
+          </p>
+        </td></tr>
+      </table>
+      <p style="text-align:center;color:#5a665d;font-size:11px;margin-top:16px;letter-spacing:2px;text-transform:uppercase">{SHOP_NAME}</p>
+    </div>
+    """
+
+def _send_email_sync(to: str, subject: str, html: str) -> Optional[str]:
+    if not RESEND_API_KEY:
+        logger.warning(f"[email skipped — no RESEND_API_KEY] would have sent to {to}: {subject}")
+        return None
+    try:
+        res = resend.Emails.send({
+            "from": SENDER_EMAIL,
+            "to": [to],
+            "subject": subject,
+            "html": html,
+        })
+        return res.get("id") if isinstance(res, dict) else None
+    except Exception as e:
+        logger.error(f"Resend send failed to {to}: {e}")
+        return None
+
+async def send_booking_emails(appt: dict):
+    customer_html = _email_html(
+        title=f"See you soon, {appt['name'].split(' ')[0]}.",
+        intro=f"Your appointment at {SHOP_NAME} is confirmed. Here are the details — save this email for your records.",
+        appt=appt,
+    )
+    admin_html = _email_html(
+        title="New booking received",
+        intro=f"A new appointment was just booked. Review in the admin dashboard.",
+        appt=appt,
+    )
+    await asyncio.gather(
+        asyncio.to_thread(_send_email_sync, appt["email"], f"Your {appt['service']} at {SHOP_NAME} — {appt['date']} {appt['time']}", customer_html),
+        asyncio.to_thread(_send_email_sync, ADMIN_EMAIL, f"New booking: {appt['name']} · {appt['service']} · {appt['date']} {appt['time']}", admin_html),
+    )
 
 
 # ---------- Models ----------
@@ -121,13 +206,41 @@ async def root():
 async def get_services():
     return {"services": SERVICES}
 
+@api_router.get("/availability")
+async def get_availability(date: str, stylist: Optional[str] = None):
+    """Return list of booked time slots for a given date.
+    If stylist is provided, only that stylist's slots are returned.
+    'No preference' bookings are not stylist-locked (don't block other artists)."""
+    query = {"date": date, "status": {"$in": ACTIVE_STATUSES}}
+    if stylist:
+        query["stylist"] = stylist
+    docs = await db.appointments.find(query, {"_id": 0, "time": 1, "stylist": 1}).to_list(1000)
+    return {"date": date, "stylist": stylist, "booked_times": sorted({d["time"] for d in docs})}
+
 @api_router.post("/appointments", response_model=Appointment)
 async def create_appointment(payload: AppointmentCreate):
     if payload.service not in SERVICES:
         raise HTTPException(status_code=400, detail=f"Invalid service. Choose one of: {', '.join(SERVICES)}")
+
+    # Availability check: same stylist can't be double-booked at the same date+time
+    if payload.stylist:
+        conflict = await db.appointments.find_one({
+            "stylist": payload.stylist,
+            "date": payload.date,
+            "time": payload.time,
+            "status": {"$in": ACTIVE_STATUSES},
+        })
+        if conflict:
+            raise HTTPException(
+                status_code=409,
+                detail=f"{payload.stylist} is already booked at {payload.time} on {payload.date}. Please pick a different time or artist.",
+            )
+
     appt = Appointment(**payload.model_dump())
     await db.appointments.insert_one(appt.model_dump())
     logger.info(f"New appointment booked: {appt.id} | {appt.service} for {appt.name}")
+    # Fire-and-forget emails (non-blocking)
+    asyncio.create_task(send_booking_emails(appt.model_dump()))
     return appt
 
 @api_router.get("/appointments", response_model=List[Appointment])
