@@ -1,0 +1,29 @@
+{
+  "summary": "Full smoke test of C&C barber shop app. Backend: all 7 API checks pass (login good/bad, create appointment unauth, list/patch/delete admin, /auth/me). Frontend: home page loads with all 4 service cards and both QR codes; navigation to /book works; booking form submission shows success; admin login -> dashboard -> filter buttons, status update (Confirm), delete, and logout all functional; invalid login shows toast 'Invalid email or password'.",
+  "tested_scope": ["frontend", "backend", "auth", "integration"],
+  "passed": [
+    "GET / loads home-page with hero, 4 service-card-{haircut,manicure,pedicure,spa} and both QR codes (booking-qr-code, booking-qr-code-secondary) visible",
+    "hero-book-btn navigates to /book",
+    "Booking form fills (name/email/phone/service/stylist/date/time/notes) and shows booking-success",
+    "POST /api/appointments returns 200 with appointment record (no auth required)",
+    "GET /api/appointments without token returns 401 'Not authenticated'",
+    "POST /api/auth/login with admin@candc.com/admin123 returns 200 with JWT (field name: 'token')",
+    "POST /api/auth/login with wrong password returns 401 'Invalid email or password'",
+    "GET /api/appointments with Bearer token returns list (200)",
+    "PATCH /api/appointments/{id} with token updates status to confirmed (200)",
+    "DELETE /api/appointments/{id} with token returns {deleted:true} (200)",
+    "GET /api/auth/me returns admin profile (200)",
+    "/admin/login -> Sign In -> redirects to /admin and admin-dashboard renders",
+    "Filter buttons filter-{all,pending,confirmed,completed,cancelled} all present and 'confirmed' filter narrows to confirmed rows",
+    "Actions dropdown -> Confirm updates row status badge to CONFIRMED",
+    "Actions dropdown -> Delete removes the row",
+    "logout-btn clears cc_admin_token from localStorage and redirects to /admin/login",
+    "Invalid login shows toast error 'Invalid email or password'"
+  ],
+  "failed": [],
+  "action_items": [],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "retest_needed": false,
+  "full_testing_deferred": true,
+  "notes": "Login endpoint returns token in field 'token' (not 'access_token'); frontend api.js / AdminLogin.jsx already consume data.token correctly so end-to-end auth works."
+}
