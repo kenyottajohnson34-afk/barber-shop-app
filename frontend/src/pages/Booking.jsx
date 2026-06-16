@@ -331,7 +331,7 @@ export default function Booking() {
               </div>
             </div>
             <div className="grid sm:grid-cols-2 gap-4">
-              {/* Pay deposit now */}
+              {/* Pay now / Pay deposit now */}
               <button
                 type="button"
                 data-testid="pay-now-option"
@@ -344,7 +344,7 @@ export default function Booking() {
               >
                 <div className="flex items-center gap-2 mb-1">
                   <CreditCard className="w-4 h-4 text-primary" />
-                  <span className="font-medium">Pay deposit now</span>
+                  <span className="font-medium">{depositRequired ? "Pay deposit now" : "Pay now"}</span>
                   {depositRequired ? (
                     <span className="ml-auto text-[10px] uppercase tracking-widest bg-primary/15 text-primary px-2 py-0.5 rounded-sm">Required</span>
                   ) : (
@@ -353,7 +353,9 @@ export default function Booking() {
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   <span className="gold-text font-medium">{paymentsConfig.deposit_amount} {paymentsConfig.currency.toUpperCase()}</span>
-                  {" "}deposit · secures your spot · applied to your final bill. Credit or debit accepted.
+                  {depositRequired
+                    ? " deposit · secures your spot · applied to your final bill. Credit or debit accepted."
+                    : " · secures your spot · applied to your final bill. Credit or debit accepted."}
                 </p>
               </button>
 
@@ -400,7 +402,7 @@ export default function Booking() {
               {submitting ? (
                 <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{payNow ? "Redirecting…" : "Booking…"}</>
               ) : payNow ? (
-                <><CreditCard className="w-4 h-4 mr-2" />Pay {paymentsConfig.deposit_amount} {paymentsConfig.currency.toUpperCase()} &amp; Book</>
+                <><CreditCard className="w-4 h-4 mr-2" />{depositRequired ? `Pay ${paymentsConfig.deposit_amount} ${paymentsConfig.currency.toUpperCase()} Deposit & Book` : `Pay ${paymentsConfig.deposit_amount} ${paymentsConfig.currency.toUpperCase()} & Book`}</>
               ) : (
                 "Confirm Appointment"
               )}
