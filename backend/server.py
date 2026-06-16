@@ -14,6 +14,9 @@ import jwt
 import resend
 from twilio.rest import Client as TwilioClient
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from emergentintegrations.payments.stripe.checkout import (
+    StripeCheckout, CheckoutSessionRequest, CheckoutSessionResponse, CheckoutStatusResponse,
+)
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 
@@ -41,6 +44,12 @@ TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', '').strip()
 TWILIO_FROM_NUMBER = os.environ.get('TWILIO_FROM_NUMBER', '').strip()
 ADMIN_PHONE = os.environ.get('ADMIN_PHONE', '').strip()
 DEFAULT_COUNTRY_CODE = os.environ.get('DEFAULT_COUNTRY_CODE', '+1')
+STRIPE_API_KEY = os.environ.get('STRIPE_API_KEY', '').strip()
+
+# Deposit configuration — single source of truth (server-side only, never trusted from client)
+DEPOSIT_AMOUNT = 500.0          # 500 pesos
+DEPOSIT_CURRENCY = "dop"        # Dominican Peso
+MASSAGE_PREFIX = "Masaje"       # All massage services require deposit
 
 if RESEND_API_KEY:
     resend.api_key = RESEND_API_KEY
@@ -334,6 +343,19 @@ async def create_appointment(payload: AppointmentCreate):
             )
 
     appt = Appointment(**payload.model_dump())
+    # Massage services require a deposit before confirming
+    if deposit_required(appt.service):
+        appt_dict = appt.model_dump()
+        appt_dict["status"] = "pending_payment"
+        appt_dict["deposit_paid"] = False
+        appt_dict["deposit_required"] = True
+        appt_dict["deposit_amount"] = DEPOSIT_AMOUNT
+        appt_dict["deposit_currency"] = DEPOSIT_CURRENCY
+        await db.appointments.insert_one(appt_dict)
+        logger.info(f"Massage appointment pending deposit: {appt.id} | {appt.service} for {appt.name}")
+        # Don't send confirmation emails/SMS yet — wait for payment
+        return Appointment(**appt_dict)
+
     await db.appointments.insert_one(appt.model_dump())
     logger.info(f"New appointment booked: {appt.id} | {appt.service} for {appt.name}")
     # Fire-and-forget notifications (non-blocking)
@@ -348,7 +370,7 @@ async def list_appointments(_: dict = Depends(get_current_admin)):
 
 @api_router.patch("/appointments/{appointment_id}", response_model=Appointment)
 async def update_appointment(appointment_id: str, body: AppointmentStatusUpdate, _: dict = Depends(get_current_admin)):
-    valid = {"pending", "confirmed", "cancelled", "completed"}
+    valid = {"pending", "pending_payment", "confirmed", "cancelled", "completed"}
     if body.status not in valid:
         raise HTTPException(status_code=400, detail="Invalid status")
     result = await db.appointments.find_one_and_update(
@@ -387,6 +409,167 @@ async def manual_reminder_run(_: dict = Depends(get_current_admin)):
     """Manually trigger the 24h-reminder job (useful for testing)."""
     await reminder_job()
     return {"ok": True}
+
+
+# ---------- Payments (Stripe Checkout for booking deposit) ----------
+def deposit_required(service: str) -> bool:
+    return bool(service) and service.startswith(MASSAGE_PREFIX)
+
+class CheckoutCreateRequest(BaseModel):
+    appointment_id: str
+    origin_url: str  # e.g. https://yoursite.com — frontend's window.location.origin
+
+@api_router.get("/payments/config")
+async def payments_config():
+    return {
+        "deposit_amount": DEPOSIT_AMOUNT,
+        "currency": DEPOSIT_CURRENCY,
+        "deposit_required_prefix": MASSAGE_PREFIX,
+        "stripe_configured": bool(STRIPE_API_KEY),
+    }
+
+@api_router.post("/payments/checkout")
+async def create_checkout(payload: CheckoutCreateRequest, http_request: Request):
+    if not STRIPE_API_KEY:
+        raise HTTPException(status_code=503, detail="Payments are not configured yet")
+
+    appt = await db.appointments.find_one({"id": payload.appointment_id}, {"_id": 0})
+    if not appt:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+    if appt.get("deposit_paid"):
+        raise HTTPException(status_code=400, detail="Deposit already paid for this appointment")
+
+    # Server-side fixed amount (do NOT accept amount from client)
+    amount = float(DEPOSIT_AMOUNT)
+    currency = DEPOSIT_CURRENCY
+
+    origin = payload.origin_url.rstrip("/")
+    success_url = f"{origin}/book/success?session_id={{CHECKOUT_SESSION_ID}}"
+    cancel_url = f"{origin}/book?cancelled=1"
+
+    host_url = str(http_request.base_url)
+    webhook_url = f"{host_url.rstrip('/')}/api/webhook/stripe"
+    stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
+
+    metadata = {
+        "appointment_id": appt["id"],
+        "customer_email": appt["email"],
+        "customer_name": appt["name"],
+        "service": appt["service"],
+        "kind": "booking_deposit",
+    }
+
+    req = CheckoutSessionRequest(
+        amount=amount,
+        currency=currency,
+        success_url=success_url,
+        cancel_url=cancel_url,
+        metadata=metadata,
+    )
+    session: CheckoutSessionResponse = await stripe_checkout.create_checkout_session(req)
+
+    await db.payment_transactions.insert_one({
+        "id": str(uuid.uuid4()),
+        "session_id": session.session_id,
+        "appointment_id": appt["id"],
+        "email": appt["email"],
+        "amount": amount,
+        "currency": currency,
+        "metadata": metadata,
+        "status": "initiated",
+        "payment_status": "pending",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+
+    return {"url": session.url, "session_id": session.session_id}
+
+@api_router.get("/payments/status/{session_id}")
+async def payment_status(session_id: str, http_request: Request):
+    if not STRIPE_API_KEY:
+        raise HTTPException(status_code=503, detail="Payments are not configured")
+    tx = await db.payment_transactions.find_one({"session_id": session_id}, {"_id": 0})
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    host_url = str(http_request.base_url)
+    webhook_url = f"{host_url.rstrip('/')}/api/webhook/stripe"
+    stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
+    status_resp: CheckoutStatusResponse = await stripe_checkout.get_checkout_status(session_id)
+
+    new_status = status_resp.status
+    new_payment_status = status_resp.payment_status
+    already_paid = tx.get("payment_status") == "paid"
+
+    # Update transaction record
+    await db.payment_transactions.update_one(
+        {"session_id": session_id},
+        {"$set": {
+            "status": new_status,
+            "payment_status": new_payment_status,
+            "amount_total": status_resp.amount_total,
+            "currency_confirmed": status_resp.currency,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }},
+    )
+
+    # Only mark appointment as deposit_paid ONCE
+    if new_payment_status == "paid" and not already_paid:
+        await db.appointments.update_one(
+            {"id": tx["appointment_id"]},
+            {"$set": {
+                "deposit_paid": True,
+                "deposit_amount": DEPOSIT_AMOUNT,
+                "deposit_currency": DEPOSIT_CURRENCY,
+                "deposit_session_id": session_id,
+                "status": "confirmed",  # auto-confirm on successful deposit
+            }},
+        )
+        # Now send confirmation notifications (held back until payment success)
+        appt_doc = await db.appointments.find_one({"id": tx["appointment_id"]}, {"_id": 0})
+        if appt_doc:
+            asyncio.create_task(send_booking_emails(appt_doc))
+            asyncio.create_task(send_booking_sms(appt_doc))
+
+    return {
+        "session_id": session_id,
+        "status": new_status,
+        "payment_status": new_payment_status,
+        "amount_total": status_resp.amount_total,
+        "currency": status_resp.currency,
+        "appointment_id": tx["appointment_id"],
+    }
+
+@api_router.post("/webhook/stripe")
+async def stripe_webhook(request: Request):
+    if not STRIPE_API_KEY:
+        return {"received": False}
+    body = await request.body()
+    sig = request.headers.get("Stripe-Signature", "")
+    host_url = str(request.base_url)
+    webhook_url = f"{host_url.rstrip('/')}/api/webhook/stripe"
+    stripe_checkout = StripeCheckout(api_key=STRIPE_API_KEY, webhook_url=webhook_url)
+    try:
+        event = await stripe_checkout.handle_webhook(body, sig)
+    except Exception as e:
+        logger.error(f"Stripe webhook handling failed: {e}")
+        raise HTTPException(status_code=400, detail="Invalid webhook")
+    if event.session_id and event.payment_status == "paid":
+        tx = await db.payment_transactions.find_one({"session_id": event.session_id})
+        if tx and tx.get("payment_status") != "paid":
+            await db.payment_transactions.update_one(
+                {"session_id": event.session_id},
+                {"$set": {"payment_status": "paid", "status": "complete",
+                          "webhook_event_id": event.event_id,
+                          "updated_at": datetime.now(timezone.utc).isoformat()}},
+            )
+            await db.appointments.update_one(
+                {"id": tx["appointment_id"]},
+                {"$set": {"deposit_paid": True, "deposit_amount": DEPOSIT_AMOUNT,
+                          "deposit_currency": DEPOSIT_CURRENCY,
+                          "deposit_session_id": event.session_id, "status": "confirmed"}},
+            )
+    return {"received": True}
+
 
 @api_router.post("/auth/login", response_model=LoginResponse)
 async def admin_login(payload: LoginRequest):

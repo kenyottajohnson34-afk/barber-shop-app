@@ -1,0 +1,52 @@
+{
+  "summary": "Iteration 3: Validated new Stripe deposit-payment flow end-to-end. Backend pytest suite for /api/payments/* — 11/11 PASS. Frontend /book page validated: massage selection forces deposit (Pay-at-shop disabled, 'Required' badge shown, 'Pay 500 DOP & Book' CTA); haircut selection keeps both options enabled. /book/success without session_id shows 'Missing session id' error. Admin dashboard still works and correctly displays PENDING_PAYMENT badge. No regressions.",
+  "tested_scope": ["backend", "frontend", "integration"],
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "passed_backend": [
+    "GET /api/payments/config -> {deposit_amount:500, currency:'dop', deposit_required_prefix:'Masaje', stripe_configured:true}",
+    "POST /api/appointments with 'Masaje Relajante (60 min)' -> 200, status='pending_payment'; DB row has deposit_required=true, deposit_paid=false, deposit_amount=500.0, deposit_currency='dop'",
+    "POST /api/appointments with 'Classic Haircut' -> 200, status='pending'; backend logs immediately show [email skipped] and [sms skipped] WARNING entries",
+    "POST /api/appointments with massage does NOT emit email/sms warnings (only 'Massage appointment pending deposit' INFO log)",
+    "POST /api/payments/checkout -> 200 with {url, session_id}; url starts with 'https://checkout.stripe.com/'; payment_transactions row inserted with status='initiated', amount=500.0, currency='dop'",
+    "GET /api/payments/status/{session_id} -> 200 with valid JSON {session_id,status,payment_status,amount_total,currency,appointment_id} (unpaid session)",
+    "POST /api/payments/checkout for non-existent appointment_id -> 404",
+    "POST /api/payments/checkout twice after marking deposit_paid=true manually -> 400 'Deposit already paid for this appointment'",
+    "GET /api/appointments without JWT -> 401/403; with admin JWT -> 200 array",
+    "Admin login admin@candc.com/admin123 -> 200 token"
+  ],
+  "passed_frontend": [
+    "/book loads with deposit-section, pay-now-option, pay-at-shop-option testids",
+    "'Classic Haircut' selected -> pay-at-shop ENABLED, no 'Required' badge, pay-at-shop clickable",
+    "'Masaje Relajante (60 min)' selected -> pay-at-shop DISABLED (opacity-40 cursor-not-allowed), 'REQUIRED' badge shown on pay-now-option, copy 'Not available for massage services — a deposit is required.' shown, pay-now-option auto-selected with border-primary, submit CTA changes to 'Pay 500 DOP & Book'",
+    "/book/success (no session_id) -> renders booking-success-page with 'Missing session id' error and 'Try again' link",
+    "Regression: /admin login flow works, dashboard renders 8 appointments, PENDING_PAYMENT status badge shows for massage row"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_payments.py",
+    "/app/backend/tests/test_availability_and_email.py",
+    "/app/test_reports/pytest/iter3_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Appointment Pydantic response model does NOT include deposit_required/deposit_paid/deposit_amount fields (model_config extra='ignore' drops them), so the POST /api/appointments response for a massage hides the deposit context from the frontend. Frontend currently re-derives via /payments/config + service name, which works, but it would be cleaner (and safer against drift) to extend the Appointment model with optional deposit_required: bool, deposit_amount: float, deposit_currency: str so clients can render badges/amounts from the canonical server response.",
+    "GET /api/payments/status/{session_id} hits Stripe on every poll (BookingSuccess polls every 2.5s up to 12 times). If a transaction is already paid the endpoint still calls Stripe; consider short-circuiting when tx.payment_status=='paid' to reduce Stripe API load.",
+    "BookingSuccess.jsx line 56: `const appt = state.data ? null : null;` is dead code (always null). Safe to delete.",
+    "deposit_required() in server.py uses string startswith on a hard-coded MASSAGE_PREFIX. If a new massage-style category is added later (e.g. 'Spa Facial') it won't trigger deposit. Acceptable for current spec but document this assumption near the constant.",
+    "STRIPE_API_KEY is a placeholder ('sk_test_emergent'). Stripe Checkout sessions are still being created — verify with main agent that this is the Emergent test-mode key and not a literal string that happens to work; if hard-coding, leave a comment so a future engineer doesn't think it's broken."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_payments.py (new)"
+  ],
+  "success_rate": {"backend": "100% (11/11 new + 17/17 regression)", "frontend": "100% (booking, deposit toggle, /book/success error, admin dashboard)"},
+  "test_credentials": "admin@candc.com / admin123",
+  "seed_data_creation": "Tests create TEST_-prefixed appointments and payment_transactions; cleanup fixture removes them at module teardown.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "mocked_apis_confirmed": [
+    "Resend email — RESEND_API_KEY empty; backend logs '[email skipped — no RESEND_API_KEY]'. Verified.",
+    "Twilio SMS — TWILIO_ACCOUNT_SID empty; backend logs '[sms skipped — Twilio not configured]'. Verified.",
+    "Stripe Checkout — REAL test-mode (sk_test_emergent). Sessions are created on Stripe servers and the URL starts with https://checkout.stripe.com/. No actual card payment was attempted per instructions."
+  ],
+  "context_for_next_testing_agent": "Payment tests live in /app/backend/tests/test_payments.py (11 tests). They use REACT_APP_BACKEND_URL + direct MongoDB access (via MONGO_URL/DB_NAME) to verify deposit_* fields persistence and to manually flip deposit_paid for the 400-already-paid test. Use _future_date() helper (returns >=2026-07-06, avoids Mondays). The Radix Select on /book has 41 service options — programmatic selection of Masaje via clicking testid times out because the option is below the visible scroll area; use Radix's first-letter typeahead: open select, then page.keyboard.type('Masaje Relajante (60', delay=30) then press Enter. BookingSuccess polls /api/payments/status every 2.5s up to 12 attempts."
+}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, Check, Loader2 } from "lucide-react";
+import { Calendar as CalendarIcon, Check, Loader2, CreditCard, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 import { api, CATEGORIES, BOOKABLE_SERVICES, STYLISTS, TIME_SLOTS } from "../lib/api";
@@ -45,6 +45,25 @@ export default function Booking() {
   const [success, setSuccess] = useState(null);
   const [bookedTimes, setBookedTimes] = useState([]);
   const [loadingAvail, setLoadingAvail] = useState(false);
+  const [payNow, setPayNow] = useState(false);
+  const [paymentsConfig, setPaymentsConfig] = useState({
+    deposit_amount: 500,
+    currency: "dop",
+    deposit_required_prefix: "Masaje",
+    stripe_configured: false,
+  });
+
+  const isMassage = form.service?.startsWith(paymentsConfig.deposit_required_prefix || "Masaje");
+  const depositRequired = isMassage; // Massage services REQUIRE deposit
+
+  useEffect(() => {
+    api.get("/payments/config").then(({ data }) => setPaymentsConfig(data)).catch(() => {});
+  }, []);
+
+  // Massage selected → force payNow ON (required)
+  useEffect(() => {
+    if (depositRequired) setPayNow(true);
+  }, [depositRequired]);
 
   useEffect(() => {
     setForm((f) => ({ ...f, service: initialService }));
@@ -82,6 +101,10 @@ export default function Booking() {
       toast.error("Please complete every required field.");
       return;
     }
+    if (depositRequired && !paymentsConfig.stripe_configured) {
+      toast.error("Online payment is not configured yet. Please contact the shop to book a massage.");
+      return;
+    }
     setSubmitting(true);
     try {
       const payload = {
@@ -89,8 +112,28 @@ export default function Booking() {
         stylist: form.stylist === "No preference" ? null : form.stylist,
         date: format(form.date, "yyyy-MM-dd"),
       };
-      const { data } = await api.post("/appointments", payload);
-      setSuccess(data);
+      const { data: appt } = await api.post("/appointments", payload);
+
+      // Pay-now flow → redirect to Stripe Checkout
+      if (payNow) {
+        try {
+          const { data: checkout } = await api.post("/payments/checkout", {
+            appointment_id: appt.id,
+            origin_url: window.location.origin,
+          });
+          // Stash for the success page
+          sessionStorage.setItem("cc_pending_appt", JSON.stringify(appt));
+          window.location.href = checkout.url;
+          return;
+        } catch (err) {
+          const detail = err?.response?.data?.detail;
+          toast.error(typeof detail === "string" ? detail : "Could not start checkout.");
+          setSubmitting(false);
+          return;
+        }
+      }
+
+      setSuccess(appt);
       toast.success("Appointment booked successfully!");
     } catch (err) {
       const detail = err?.response?.data?.detail;
@@ -279,9 +322,67 @@ export default function Booking() {
 
           <div className="hairline my-10" />
 
+          {/* Deposit / Payment selection */}
+          <div className="mb-8 space-y-4" data-testid="deposit-section">
+            <div className="overline">Payment</div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              {/* Pay deposit now */}
+              <button
+                type="button"
+                data-testid="pay-now-option"
+                onClick={() => setPayNow(true)}
+                className={`text-left p-5 rounded-sm border transition-colors ${
+                  payNow
+                    ? "border-primary bg-primary/5"
+                    : "border-white/10 hover:border-white/30"
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <CreditCard className="w-4 h-4 text-primary" />
+                  <span className="font-medium">Pay deposit now</span>
+                  {depositRequired && (
+                    <span className="ml-auto text-[10px] uppercase tracking-widest bg-primary/15 text-primary px-2 py-0.5 rounded-sm">Required</span>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  <span className="gold-text font-medium">{paymentsConfig.deposit_amount} {paymentsConfig.currency.toUpperCase()}</span>
+                  {" "}credit card deposit · secures your spot · applied to your final bill.
+                </p>
+              </button>
+
+              {/* Pay at shop */}
+              <button
+                type="button"
+                data-testid="pay-at-shop-option"
+                onClick={() => !depositRequired && setPayNow(false)}
+                disabled={depositRequired}
+                className={`text-left p-5 rounded-sm border transition-colors ${
+                  !payNow && !depositRequired
+                    ? "border-primary bg-primary/5"
+                    : "border-white/10 hover:border-white/30"
+                } ${depositRequired ? "opacity-40 cursor-not-allowed" : ""}`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Sparkles className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">Pay at the shop</span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {depositRequired
+                    ? "Not available for massage services — a deposit is required."
+                    : "No upfront payment. Pay when you arrive."}
+                </p>
+              </button>
+            </div>
+            {depositRequired && !paymentsConfig.stripe_configured && (
+              <p className="text-xs text-red-300 bg-red-500/10 border border-red-500/30 rounded-sm p-3" data-testid="stripe-not-configured-warning">
+                Online payments aren't activated yet. Please call us at <span className="gold-text">849-581-7990</span> to book a massage.
+              </p>
+            )}
+          </div>
+
           <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
             <p className="text-xs text-muted-foreground tracking-wide max-w-md">
-              By confirming you agree to our 24-hour cancellation policy. We'll send a reminder via email.
+              By confirming you agree to our 24-hour cancellation policy. We'll send a reminder via email and text.
             </p>
             <Button
               type="submit"
@@ -289,7 +390,13 @@ export default function Booking() {
               disabled={submitting}
               className="px-8 py-6 bg-primary text-primary-foreground hover:bg-primary/90 rounded-sm tracking-wide w-full sm:w-auto"
             >
-              {submitting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Booking…</> : "Confirm Appointment"}
+              {submitting ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{payNow ? "Redirecting…" : "Booking…"}</>
+              ) : payNow ? (
+                <><CreditCard className="w-4 h-4 mr-2" />Pay {paymentsConfig.deposit_amount} {paymentsConfig.currency.toUpperCase()} &amp; Book</>
+              ) : (
+                "Confirm Appointment"
+              )}
             </Button>
           </div>
         </form>
