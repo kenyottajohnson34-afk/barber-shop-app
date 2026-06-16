@@ -4,13 +4,14 @@ import { format } from "date-fns";
 import { Calendar as CalendarIcon, Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { api, SERVICES, STYLISTS, TIME_SLOTS } from "../lib/api";
+import { api, CATEGORIES, BOOKABLE_SERVICES, STYLISTS, TIME_SLOTS } from "../lib/api";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Textarea } from "../components/ui/textarea";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select, SelectContent, SelectGroup, SelectItem, SelectLabel,
+  SelectTrigger, SelectValue,
 } from "../components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popover";
 import { Calendar } from "../components/ui/calendar";
@@ -21,7 +22,13 @@ export default function Booking() {
 
   const initialService = useMemo(() => {
     const s = params.get("service");
-    return SERVICES.find((x) => x.name === s)?.name || "Haircut";
+    const cat = params.get("category");
+    if (s && BOOKABLE_SERVICES.some((b) => b.name === s)) return s;
+    if (cat) {
+      const c = CATEGORIES.find((x) => x.slug === cat && !x.notBookable);
+      if (c) return c.services[0];
+    }
+    return BOOKABLE_SERVICES[0]?.name || "";
   }, [params]);
 
   const [form, setForm] = useState({
@@ -175,13 +182,22 @@ export default function Booking() {
             <Field label="Service">
               <Select value={form.service} onValueChange={set("service")}>
                 <SelectTrigger data-testid="booking-service-select" className="bg-transparent border-white/15">
-                  <SelectValue />
+                  <SelectValue placeholder="Pick a service" />
                 </SelectTrigger>
-                <SelectContent>
-                  {SERVICES.map((s) => (
-                    <SelectItem key={s.name} value={s.name} data-testid={`service-option-${s.name.toLowerCase()}`}>
-                      {s.name} — <span className="text-primary">{s.price}</span>
-                    </SelectItem>
+                <SelectContent className="max-h-80">
+                  {CATEGORIES.filter((c) => !c.notBookable).map((c) => (
+                    <SelectGroup key={c.slug}>
+                      <SelectLabel className="text-primary text-xs uppercase tracking-widest">{c.name}</SelectLabel>
+                      {c.services.map((s) => (
+                        <SelectItem
+                          key={s}
+                          value={s}
+                          data-testid={`service-option-${s.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                        >
+                          {s}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
                   ))}
                 </SelectContent>
               </Select>

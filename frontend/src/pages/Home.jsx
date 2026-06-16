@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
-import { SERVICES } from "../lib/api";
-import { ArrowRight, Scissors, Sparkles, Award, Clock } from "lucide-react";
+import { CATEGORIES, SHOP } from "../lib/api";
+import { ArrowRight, Scissors, Sparkles, Award, Clock, Check } from "lucide-react";
 
 const LOGO_URL = "https://customer-assets.emergentagent.com/job_cuts-and-care/artifacts/6c9hyyw2_IMG-20260615-WA0073.jpg";
 
@@ -32,16 +32,15 @@ export default function Home() {
           />
 
           <div className="overline mt-10 mb-4 fade-up" style={{ animationDelay: "0.1s" }}>
-            Est. C&amp;C — Barbería &amp; Spa · Style &amp; Relax
+            {SHOP.tagline} · Costambar, Puerto Plata
           </div>
 
           <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl leading-[1.05] tracking-tighter mb-6 fade-up" style={{ animationDelay: "0.15s" }}>
-            Timeless craft. <span className="gold-text">Modern</span> <em className="not-italic text-foreground/90">ritual.</em>
+            <em className="not-italic">Estilo</em> que te <span className="gold-text">representa.</span>
           </h1>
 
           <p className="text-muted-foreground text-base sm:text-lg max-w-xl mb-10 leading-relaxed font-light fade-up" style={{ animationDelay: "0.2s" }}>
-            Precision haircuts, immaculate manicures &amp; pedicures, and restorative spa
-            treatments — under one roof, by stylists who care.
+            Barbería, uñas, masajes y lounge — todo bajo un techo, en Costambar.
           </p>
 
           <div className="flex flex-wrap gap-4 items-center justify-center fade-up" style={{ animationDelay: "0.25s" }}>
@@ -109,46 +108,62 @@ export default function Home() {
             <div>
               <div className="overline mb-4">Our Menu</div>
               <h2 className="font-serif text-4xl sm:text-5xl lg:text-6xl tracking-tighter">
-                Three services.<br/><span className="gold-text">One obsession.</span>
+                Cuts. Nails. Massage.<br/><span className="gold-text">A full ritual.</span>
               </h2>
             </div>
             <p className="text-muted-foreground max-w-md text-sm leading-relaxed">
-              Every appointment is an unhurried ritual — never a rushed transaction. Choose your
-              service, choose your stylist, and let us take care of the rest.
+              Four worlds under one roof — barbería, uñas, masajes y lounge.
+              Choose your service, choose your stylist, and let us take care of the rest.
             </p>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {SERVICES.map((s, i) => (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {CATEGORIES.map((c, i) => (
               <div
-                key={s.name}
-                data-testid={`service-card-${s.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
-                className="group bg-card border border-white/5 hover:border-primary/40 transition-all duration-500 rounded-sm overflow-hidden"
+                key={c.slug}
+                data-testid={`category-card-${c.slug}`}
+                className="group bg-card border border-white/5 hover:border-primary/40 transition-all duration-500 rounded-sm overflow-hidden flex flex-col"
                 style={{ animationDelay: `${0.05 * i}s` }}
               >
-                <div className="aspect-[4/5] overflow-hidden">
+                <div className="aspect-[4/3] overflow-hidden">
                   <img
-                    src={s.image}
-                    alt={s.name}
+                    src={c.image}
+                    alt={c.name}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                   />
                 </div>
-                <div className="p-6">
-                  <div className="flex items-baseline justify-between mb-3">
-                    <h3 className="font-serif text-2xl">{s.name}</h3>
-                    <span className="gold-text font-medium">{s.price}</span>
-                  </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed mb-5">{s.description}</p>
-                  <div className="flex items-center justify-between text-xs uppercase tracking-widest">
-                    <span className="text-muted-foreground">{s.duration}</span>
+                <div className="p-6 flex-1 flex flex-col">
+                  <div className="overline mb-2">{c.subtitle}</div>
+                  <h3 className="font-serif text-3xl mb-3 gold-text">{c.name}</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed mb-5">{c.description}</p>
+
+                  <ul className="space-y-1.5 text-sm text-foreground/85 mb-6 flex-1">
+                    {c.services.slice(0, 6).map((s) => (
+                      <li key={s} className="flex items-start gap-2">
+                        <Check className="w-3 h-3 text-primary mt-1.5 shrink-0" />
+                        <span>{s}</span>
+                      </li>
+                    ))}
+                    {c.services.length > 6 && (
+                      <li className="text-xs text-muted-foreground/80 pl-5 pt-1">
+                        + {c.services.length - 6} more
+                      </li>
+                    )}
+                  </ul>
+
+                  {c.notBookable ? (
+                    <span className="text-xs uppercase tracking-widest text-muted-foreground">
+                      Walk-in only
+                    </span>
+                  ) : (
                     <Link
-                      to={`/book?service=${encodeURIComponent(s.name)}`}
-                      data-testid={`book-${s.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-btn`}
-                      className="text-primary hover:text-foreground transition-colors inline-flex items-center gap-1"
+                      to={`/book?category=${c.slug}`}
+                      data-testid={`book-${c.slug}-btn`}
+                      className="text-primary hover:text-foreground transition-colors inline-flex items-center gap-1 text-xs uppercase tracking-widest"
                     >
-                      Book <ArrowRight className="w-3 h-3" />
+                      Book {c.name} <ArrowRight className="w-3 h-3" />
                     </Link>
-                  </div>
+                  )}
                 </div>
               </div>
             ))}

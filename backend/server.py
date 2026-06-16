@@ -157,7 +157,28 @@ async def send_booking_emails(appt: dict):
 
 
 # ---------- Models ----------
-SERVICES = ["Haircut", "Manicure & Pedicure", "Spa"]
+SERVICES = [
+    # Barbería
+    "Classic Haircut", "Fade / Taper Fade", "Premium Haircut & Styling",
+    "Beard Trim", "Beard Line-Up w/ Razor", "Haircut + Beard Combo",
+    "Kids Haircut (Under 12)", "Kids Fade", "Senior Haircut",
+    "Shape-Up / Line-Up", "Head Shave", "Hot Towel Shave",
+    "Eyebrows", "Hair Wash", "Design / Hair Art", "Hair Coloring",
+    "Facial Treatment", "VIP Service — Cut, Beard, Hot Towel & Drink",
+    # Uñas
+    "Manicura Clásica", "Manicura de Gel", "Set Completo de Acrílico",
+    "Relleno de Acrílico", "Pedicura", "Pedicura de Spa", "Pedicura de Gel",
+    "Reparación de Uñas", "Diseño de Uñas",
+    "Cambio de Esmalte (Manos)", "Cambio de Esmalte (Pies)",
+    "Manicura Infantil", "Pedicura Infantil",
+    "Manicura + Pedicura (Combo)", "Mani + Spa Pedi Gel (Combo)",
+    "Pedicura + Masaje 30 min (Combo)",
+    # Masajes
+    "Masaje Relajante (30 min)", "Masaje Relajante (60 min)",
+    "Masaje de Tejido Profundo (60 min)", "Masaje con Piedras Calientes (60 min)",
+    "Masaje de Pies (30 min)", "Masaje de Cuello y Hombros (30 min)",
+    "Masaje de Cuerpo Completo (90 min)",
+]
 
 class AppointmentCreate(BaseModel):
     name: str = Field(min_length=2, max_length=100)
