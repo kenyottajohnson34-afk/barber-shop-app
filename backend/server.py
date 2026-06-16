@@ -5,12 +5,14 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 import os
+import re
 import uuid
 import logging
 import asyncio
 import bcrypt
 import jwt
 import resend
+from twilio.rest import Client as TwilioClient
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 
@@ -31,10 +33,23 @@ ADMIN_EMAIL = os.environ.get('ADMIN_EMAIL', 'admin@candc.com')
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'admin123')
 RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '').strip()
 SENDER_EMAIL = os.environ.get('SENDER_EMAIL', 'C&C Barber Shop <onboarding@resend.dev>')
-SHOP_NAME = os.environ.get('SHOP_NAME', 'C&C Barber Shop & Spa')
+SHOP_NAME = os.environ.get('SHOP_NAME', 'C&C Barbería & Spa')
+
+TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID', '').strip()
+TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', '').strip()
+TWILIO_FROM_NUMBER = os.environ.get('TWILIO_FROM_NUMBER', '').strip()
+ADMIN_PHONE = os.environ.get('ADMIN_PHONE', '').strip()
+DEFAULT_COUNTRY_CODE = os.environ.get('DEFAULT_COUNTRY_CODE', '+1')
 
 if RESEND_API_KEY:
     resend.api_key = RESEND_API_KEY
+
+twilio_client: Optional[TwilioClient] = None
+if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN:
+    try:
+        twilio_client = TwilioClient(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+    except Exception as _e:
+        logging.getLogger(__name__).error(f"Twilio client init failed: {_e}")
 
 app = FastAPI(title="C&C Barber Shop API")
 api_router = APIRouter(prefix="/api")
@@ -156,6 +171,62 @@ async def send_booking_emails(appt: dict):
     )
 
 
+# ---------- SMS helpers (Twilio) ----------
+def normalize_phone(raw: str) -> Optional[str]:
+    """Convert various phone formats to E.164. Returns None if cannot."""
+    if not raw:
+        return None
+    s = raw.strip()
+    if s.startswith("+"):
+        digits = "+" + re.sub(r"\D", "", s[1:])
+        return digits if len(digits) >= 8 else None
+    digits = re.sub(r"\D", "", s)
+    if not digits:
+        return None
+    if len(digits) == 10:  # US/DR style without country code
+        return f"{DEFAULT_COUNTRY_CODE}{digits}"
+    if len(digits) == 11 and digits.startswith("1"):
+        return f"+{digits}"
+    return f"+{digits}"
+
+def _send_sms_sync(to_raw: str, body: str) -> Optional[str]:
+    to = normalize_phone(to_raw)
+    if not to:
+        logger.warning(f"[sms skipped — invalid phone] '{to_raw}'")
+        return None
+    if not twilio_client or not TWILIO_FROM_NUMBER:
+        logger.warning(f"[sms skipped — Twilio not configured] would send to {to}: {body[:60]}…")
+        return None
+    try:
+        msg = twilio_client.messages.create(body=body, from_=TWILIO_FROM_NUMBER, to=to)
+        return msg.sid
+    except Exception as e:
+        logger.error(f"Twilio send failed to {to}: {e}")
+        return None
+
+def _customer_sms(appt: dict) -> str:
+    first = appt['name'].split(' ')[0]
+    stylist = appt.get("stylist") or "Next available stylist"
+    return (
+        f"Hola {first}! Your {appt['service']} at {SHOP_NAME} is confirmed for "
+        f"{appt['date']} at {appt['time']} with {stylist}. "
+        f"Need to reschedule? Reply or call. Ref: {appt['id'][:8]}"
+    )
+
+def _admin_sms(appt: dict) -> str:
+    return (
+        f"📅 New booking · {appt['name']} ({appt['phone']}) · "
+        f"{appt['service']} · {appt['date']} {appt['time']} "
+        f"· stylist: {appt.get('stylist') or 'any'}"
+    )
+
+async def send_booking_sms(appt: dict):
+    tasks = [asyncio.to_thread(_send_sms_sync, appt["phone"], _customer_sms(appt))]
+    if ADMIN_PHONE:
+        tasks.append(asyncio.to_thread(_send_sms_sync, ADMIN_PHONE, _admin_sms(appt)))
+    await asyncio.gather(*tasks)
+
+
 # ---------- Models ----------
 SERVICES = [
     # Barbería
@@ -217,6 +288,9 @@ class LoginResponse(BaseModel):
     name: str
     role: str
 
+class SmsRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=480)
+
 
 # ---------- Routes ----------
 @api_router.get("/")
@@ -260,8 +334,9 @@ async def create_appointment(payload: AppointmentCreate):
     appt = Appointment(**payload.model_dump())
     await db.appointments.insert_one(appt.model_dump())
     logger.info(f"New appointment booked: {appt.id} | {appt.service} for {appt.name}")
-    # Fire-and-forget emails (non-blocking)
+    # Fire-and-forget notifications (non-blocking)
     asyncio.create_task(send_booking_emails(appt.model_dump()))
+    asyncio.create_task(send_booking_sms(appt.model_dump()))
     return appt
 
 @api_router.get("/appointments", response_model=List[Appointment])
@@ -290,6 +365,20 @@ async def delete_appointment(appointment_id: str, _: dict = Depends(get_current_
     if res.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Appointment not found")
     return {"deleted": True}
+
+@api_router.post("/appointments/{appointment_id}/sms")
+async def send_appointment_sms(appointment_id: str, body: SmsRequest, _: dict = Depends(get_current_admin)):
+    appt = await db.appointments.find_one({"id": appointment_id}, {"_id": 0})
+    if not appt:
+        raise HTTPException(status_code=404, detail="Appointment not found")
+    sid = await asyncio.to_thread(_send_sms_sync, appt["phone"], body.message)
+    sent = sid is not None
+    return {
+        "sent": sent,
+        "sid": sid,
+        "to": appt["phone"],
+        "twilio_configured": bool(twilio_client and TWILIO_FROM_NUMBER),
+    }
 
 @api_router.post("/auth/login", response_model=LoginResponse)
 async def admin_login(payload: LoginRequest):
