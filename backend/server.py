@@ -83,7 +83,7 @@ async def get_current_admin(credentials: Optional[HTTPAuthorizationCredentials] 
 ACTIVE_STATUSES = ["pending", "confirmed"]
 
 def _email_html(title: str, intro: str, appt: dict) -> str:
-    stylist = appt.get("stylist") or "Next available artist"
+    stylist = appt.get("stylist") or "Next available stylist"
     notes_row = (
         f'<tr><td style="padding:8px 0;color:#9aa49b;font-size:12px;text-transform:uppercase;letter-spacing:2px">Notes</td>'
         f'<td style="padding:8px 0;color:#fff;font-size:14px">{appt.get("notes") or "—"}</td></tr>'
@@ -104,7 +104,7 @@ def _email_html(title: str, intro: str, appt: dict) -> str:
                 <td style="padding:8px 0;color:#fff;font-size:14px">{appt.get("date")}</td></tr>
             <tr><td style="padding:8px 0;color:#9aa49b;font-size:12px;text-transform:uppercase;letter-spacing:2px">Time</td>
                 <td style="padding:8px 0;color:#fff;font-size:14px">{appt.get("time")}</td></tr>
-            <tr><td style="padding:8px 0;color:#9aa49b;font-size:12px;text-transform:uppercase;letter-spacing:2px">Artist</td>
+            <tr><td style="padding:8px 0;color:#9aa49b;font-size:12px;text-transform:uppercase;letter-spacing:2px">Stylist</td>
                 <td style="padding:8px 0;color:#fff;font-size:14px">{stylist}</td></tr>
             <tr><td style="padding:8px 0;color:#9aa49b;font-size:12px;text-transform:uppercase;letter-spacing:2px">Client</td>
                 <td style="padding:8px 0;color:#fff;font-size:14px">{appt.get("name")} · {appt.get("phone")} · {appt.get("email")}</td></tr>
@@ -157,7 +157,7 @@ async def send_booking_emails(appt: dict):
 
 
 # ---------- Models ----------
-SERVICES = ["Haircut", "Manicure", "Pedicure", "Spa"]
+SERVICES = ["Haircut", "Manicure & Pedicure", "Spa"]
 
 class AppointmentCreate(BaseModel):
     name: str = Field(min_length=2, max_length=100)
@@ -233,7 +233,7 @@ async def create_appointment(payload: AppointmentCreate):
         if conflict:
             raise HTTPException(
                 status_code=409,
-                detail=f"{payload.stylist} is already booked at {payload.time} on {payload.date}. Please pick a different time or artist.",
+                detail=f"{payload.stylist} is already booked at {payload.time} on {payload.date}. Please pick a different time or stylist.",
             )
 
     appt = Appointment(**payload.model_dump())

@@ -1,5 +1,7 @@
 import { MapPin, Phone, Mail, Instagram } from "lucide-react";
 
+const LOGO_URL = "https://customer-assets.emergentagent.com/job_cuts-and-care/artifacts/6c9hyyw2_IMG-20260615-WA0073.jpg";
+
 export default function Footer() {
   return (
     <footer
@@ -10,10 +12,9 @@ export default function Footer() {
       <div className="purple-glow w-[500px] h-[500px] -left-32 -bottom-32 opacity-50" />
       <div className="max-w-7xl mx-auto px-6 lg:px-10 py-20 grid lg:grid-cols-3 gap-12 relative">
         <div>
-          <div className="overline mb-4">Visit Us</div>
-          <h3 className="font-serif text-3xl mb-6">C&amp;C Barber Shop &amp; Spa</h3>
+          <img src={LOGO_URL} alt="C&C Barbería & Spa" className="h-28 w-auto object-contain mb-6" />
           <p className="text-muted-foreground text-sm max-w-sm leading-relaxed">
-            A modern sanctuary for grooming and self-care. Two chairs, four artists,
+            A modern sanctuary for grooming and self-care. Two chairs, four stylists,
             one obsession: timeless craft.
           </p>
         </div>
@@ -41,9 +42,10 @@ export default function Footer() {
         <div className="space-y-3 text-sm">
           <div className="overline mb-3">Opening Hours</div>
           {[
-            ["Mon — Fri", "09:00 — 19:00"],
-            ["Saturday", "09:00 — 18:00"],
-            ["Sunday", "10:00 — 16:00"],
+            ["Monday", "Closed"],
+            ["Tue — Thu", "09:00 — 17:00"],
+            ["Fri — Sat", "09:00 — 19:00"],
+            ["Sunday", "10:00 — 14:00"],
           ].map(([d, h]) => (
             <div key={d} className="flex justify-between text-muted-foreground border-b border-white/5 pb-2">
               <span>{d}</span><span className="gold-text">{h}</span>
@@ -54,8 +56,8 @@ export default function Footer() {
 
       <div className="border-t border-white/5">
         <div className="max-w-7xl mx-auto px-6 lg:px-10 py-6 flex flex-col sm:flex-row items-center justify-between text-xs text-muted-foreground">
-          <span>© {new Date().getFullYear()} C&amp;C Barber Shop &amp; Spa — All rights reserved.</span>
-          <span className="tracking-widest uppercase">Crafted with care</span>
+          <span>© {new Date().getFullYear()} C&amp;C Barbería &amp; Spa — All rights reserved.</span>
+          <span className="tracking-widest uppercase">Style &amp; Relax</span>
         </div>
       </div>
     </footer>

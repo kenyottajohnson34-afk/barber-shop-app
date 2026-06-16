@@ -1,5 +1,6 @@
 import { Link, NavLink, useLocation } from "react-router-dom";
-import { Scissors } from "lucide-react";
+
+const LOGO_URL = "https://customer-assets.emergentagent.com/job_cuts-and-care/artifacts/6c9hyyw2_IMG-20260615-WA0073.jpg";
 
 export default function Nav() {
   const { pathname } = useLocation();
@@ -13,16 +14,14 @@ export default function Nav() {
       data-testid="site-nav"
       className="fixed top-0 inset-x-0 z-50 backdrop-blur-xl bg-background/70 border-b border-white/5"
     >
-      <div className="max-w-7xl mx-auto px-6 lg:px-10 h-16 flex items-center justify-between">
-        <Link to="/" data-testid="brand-logo" className="flex items-center gap-2 group">
-          <span className="inline-flex items-center justify-center w-8 h-8 border border-primary/60 rounded-sm">
-            <Scissors className="w-4 h-4 text-primary" />
-          </span>
-          <span className="font-serif text-2xl tracking-tight">
-            <span className="gold-text">C</span>
-            <span className="text-muted-foreground mx-0.5">&amp;</span>
-            <span className="gold-text">C</span>
-          </span>
+      <div className="max-w-7xl mx-auto px-6 lg:px-10 h-20 flex items-center justify-between">
+        <Link to="/" data-testid="brand-logo" className="flex items-center gap-3 group">
+          <img
+            src={LOGO_URL}
+            alt="C&C Barbería & Spa"
+            className="h-16 w-auto object-contain"
+            data-testid="brand-logo-img"
+          />
         </Link>
 
         {!onAdmin && (

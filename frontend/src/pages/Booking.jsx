@@ -110,7 +110,7 @@ export default function Booking() {
           </p>
           <div className="text-sm text-muted-foreground mb-6 border border-white/10 p-4 rounded-sm text-left space-y-1">
             <div><span className="text-muted-foreground/70 uppercase tracking-widest text-xs">Reference</span><br/><span className="text-foreground font-mono text-xs">{success.id}</span></div>
-            {success.stylist && <div className="pt-2"><span className="text-muted-foreground/70 uppercase tracking-widest text-xs">Artist</span><br/>{success.stylist}</div>}
+            {success.stylist && <div className="pt-2"><span className="text-muted-foreground/70 uppercase tracking-widest text-xs">Stylist</span><br/>{success.stylist}</div>}
           </div>
           <div className="flex gap-3 justify-center">
             <Button data-testid="success-home-btn" onClick={() => navigate("/")} className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-sm">
@@ -186,7 +186,7 @@ export default function Booking() {
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="Preferred Artist">
+            <Field label="Preferred Stylist">
               <Select value={form.stylist} onValueChange={set("stylist")}>
                 <SelectTrigger data-testid="booking-stylist-select" className="bg-transparent border-white/15">
                   <SelectValue />
@@ -240,7 +240,7 @@ export default function Booking() {
                     mode="single"
                     selected={form.date}
                     onSelect={set("date")}
-                    disabled={(d) => d < new Date(new Date().setHours(0,0,0,0))}
+                    disabled={(d) => d < new Date(new Date().setHours(0,0,0,0)) || d.getDay() === 1}
                     initialFocus
                   />
                 </PopoverContent>

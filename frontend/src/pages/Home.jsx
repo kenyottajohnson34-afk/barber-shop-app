@@ -22,14 +22,14 @@ export default function Home() {
 
         <div className="relative max-w-7xl mx-auto px-6 lg:px-10 grid lg:grid-cols-12 gap-12 items-center w-full">
           <div className="lg:col-span-7 fade-up">
-            <div className="overline mb-6">Est. C&amp;C — Barber Shop &amp; Spa</div>
+            <div className="overline mb-6">Est. C&amp;C — Barbería &amp; Spa · Style &amp; Relax</div>
             <h1 className="font-serif text-5xl sm:text-6xl lg:text-7xl leading-[1.05] tracking-tighter mb-8">
               Timeless craft.<br />
               <span className="gold-text">Modern</span> <em className="not-italic text-foreground/90">ritual.</em>
             </h1>
             <p className="text-muted-foreground text-base sm:text-lg max-w-xl mb-10 leading-relaxed font-light">
               Precision haircuts, immaculate manicures &amp; pedicures, and restorative spa
-              treatments — under one roof, by artists who care.
+              treatments — under one roof, by stylists who care.
             </p>
 
             <div className="flex flex-wrap gap-4 items-center">
@@ -53,7 +53,7 @@ export default function Home() {
             <div className="mt-16 grid grid-cols-3 gap-8 max-w-lg">
               {[
                 ["12+", "Years"],
-                ["4", "Artists"],
+                ["4", "Stylists"],
                 ["1.2k", "Five-star reviews"],
               ].map(([n, l]) => (
                 <div key={l}>
@@ -98,7 +98,7 @@ export default function Home() {
       <section className="border-y border-white/5 bg-card/40 backdrop-blur">
         <div className="max-w-7xl mx-auto px-6 lg:px-10 py-10 grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {[
-            [Scissors, "Master Artists", "12+ years on average"],
+            [Scissors, "Master Stylists", "12+ years on average"],
             [Sparkles, "Sterile Tools", "Hospital-grade sanitation"],
             [Award, "Premium Products", "Curated brands only"],
             [Clock, "On-time Service", "Respect for your schedule"],
@@ -122,20 +122,20 @@ export default function Home() {
             <div>
               <div className="overline mb-4">Our Menu</div>
               <h2 className="font-serif text-4xl sm:text-5xl lg:text-6xl tracking-tighter">
-                Four services.<br/><span className="gold-text">One obsession.</span>
+                Three services.<br/><span className="gold-text">One obsession.</span>
               </h2>
             </div>
             <p className="text-muted-foreground max-w-md text-sm leading-relaxed">
               Every appointment is an unhurried ritual — never a rushed transaction. Choose your
-              service, choose your artist, and let us take care of the rest.
+              service, choose your stylist, and let us take care of the rest.
             </p>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {SERVICES.map((s, i) => (
               <div
                 key={s.name}
-                data-testid={`service-card-${s.name.toLowerCase()}`}
+                data-testid={`service-card-${s.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
                 className="group bg-card border border-white/5 hover:border-primary/40 transition-all duration-500 rounded-sm overflow-hidden"
                 style={{ animationDelay: `${0.05 * i}s` }}
               >
@@ -155,8 +155,8 @@ export default function Home() {
                   <div className="flex items-center justify-between text-xs uppercase tracking-widest">
                     <span className="text-muted-foreground">{s.duration}</span>
                     <Link
-                      to={`/book?service=${s.name}`}
-                      data-testid={`book-${s.name.toLowerCase()}-btn`}
+                      to={`/book?service=${encodeURIComponent(s.name)}`}
+                      data-testid={`book-${s.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-btn`}
                       className="text-primary hover:text-foreground transition-colors inline-flex items-center gap-1"
                     >
                       Book <ArrowRight className="w-3 h-3" />
@@ -180,12 +180,17 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {SERVICES.map((s, i) => (
+            {[
+              { src: "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?w=1200", alt: "Black gentleman getting a fresh fade", big: true },
+              { src: "https://images.unsplash.com/photo-1632345031435-8727f6897d53?w=900", alt: "Manicure detail" },
+              { src: "https://images.unsplash.com/photo-1600334129128-685c5582fd35?w=900", alt: "Spa massage on table" },
+              { src: "https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=900", alt: "Fresh haircut detail" },
+            ].map((g, i) => (
               <div
-                key={s.name + "-gal"}
-                className={`overflow-hidden ${i === 0 ? "row-span-2 col-span-2 aspect-square" : "aspect-square"}`}
+                key={g.alt + i}
+                className={`overflow-hidden ${g.big ? "row-span-2 col-span-2 aspect-square" : "aspect-square"}`}
               >
-                <img src={s.image} alt={s.name} className="w-full h-full object-cover hover:scale-105 transition-transform duration-700" />
+                <img src={g.src} alt={g.alt} className="w-full h-full object-cover hover:scale-105 transition-transform duration-700" />
               </div>
             ))}
           </div>
