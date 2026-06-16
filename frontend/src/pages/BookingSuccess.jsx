@@ -53,7 +53,6 @@ export default function BookingSuccess() {
     return () => { stoppedRef.current = true; };
   }, [sessionId]);
 
-  const appt = state.data ? null : null; // we get appointment_id back in state.data
   const pending = JSON.parse(sessionStorage.getItem("cc_pending_appt") || "null");
 
   return (
