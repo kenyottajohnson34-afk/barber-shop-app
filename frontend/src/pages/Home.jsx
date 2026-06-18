@@ -36,7 +36,7 @@ export default function Home() {
           </div>
 
           <h1 className="font-serif text-4xl sm:text-5xl lg:text-6xl leading-[1.05] tracking-tighter mb-6 fade-up" style={{ animationDelay: "0.15s" }}>
-            <em className="not-italic">Estilo</em> que te <span className="gold-text">representa.</span>
+            Welcome to our <span className="gold-text">Barber Shop</span>
           </h1>
 
           <p className="text-muted-foreground text-base sm:text-lg max-w-xl mb-10 leading-relaxed font-light fade-up" style={{ animationDelay: "0.2s" }}>
